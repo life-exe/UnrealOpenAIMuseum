@@ -1,3 +1,6 @@
 [submodule "devops_ue"]
 	path = devops_ue
 	url = https://github.com/life-exe/devops_ue
+[submodule "Plugins/OpenAI"]
+	path = Plugins/OpenAI
+	url = https://github.com/life-exe/UnrealOpenAIPlugin
