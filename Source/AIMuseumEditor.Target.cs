@@ -9,7 +9,7 @@ public class AIMuseumEditorTarget : TargetRules
     {
         Type = TargetType.Editor;
         DefaultBuildSettings = BuildSettingsVersion.V4;
-
+        IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
         ExtraModuleNames.AddRange(new string[] { "AIMuseum" });
     }
 }

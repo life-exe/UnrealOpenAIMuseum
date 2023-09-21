@@ -6,11 +6,11 @@
 #include "GameFramework/GameModeBase.h"
 #include "AIM_GameModeBase.generated.h"
 
-/**
- *
- */
 UCLASS()
 class AIMUSEUM_API AAIM_GameModeBase : public AGameModeBase
 {
     GENERATED_BODY()
+
+public:
+    AAIM_GameModeBase();
 };
