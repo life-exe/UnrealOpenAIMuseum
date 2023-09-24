@@ -25,6 +25,9 @@ protected:
     UPROPERTY(EditAnywhere)
     TObjectPtr<APlayerStart> PlayerStart;
 
+    UPROPERTY(EditAnywhere)
+    bool bImageGenerationEnabled{true};
+
     virtual void BeginPlay() override;
 
 private:

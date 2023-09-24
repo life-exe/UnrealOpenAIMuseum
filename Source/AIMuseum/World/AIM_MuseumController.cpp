@@ -48,6 +48,8 @@ void AAIM_MuseumController::BeginPlay()
 
 void AAIM_MuseumController::RequestImages(const FString& Prompt, int32 NumOfImages)
 {
+    if (!bImageGenerationEnabled) return;
+
     FOpenAIImage Image;
     Image.Prompt = Prompt;
     Image.Size = UOpenAIFuncLib::OpenAIImageSizeToString(EImageSize::Size_512x512);
@@ -59,7 +61,6 @@ void AAIM_MuseumController::RequestImages(const FString& Prompt, int32 NumOfImag
 
 void AAIM_MuseumController::OnCreateImageCompleted(const FImageResponse& Response)
 {
-
     if (Response.Data.Num() < 1)
     {
         UE_LOG(LogMuseumController, Warning, TEXT("No images were generated"));
@@ -86,8 +87,9 @@ void AAIM_MuseumController::OnExitExperience()
 {
     if (!GetWorld() || !PlayerStart) return;
 
-    if (const auto* PC = GetWorld()->GetFirstPlayerController())
+    if (auto* PC = GetWorld()->GetFirstPlayerController())
     {
+        PC->SetControlRotation(PlayerStart->GetActorRotation());
         if (auto* Pawn = PC->GetPawn())
         {
             Pawn->TeleportTo(PlayerStart->GetActorLocation(), PlayerStart->GetActorRotation());
