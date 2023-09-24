@@ -10,6 +10,8 @@
 class AAIM_Art;
 class UOpenAIProvider;
 struct FImageResponse;
+class AAIM_ExitPortal;
+class APlayerStart;
 
 UCLASS()
 class AIMUSEUM_API AAIM_MuseumController : public AInfo
@@ -17,6 +19,12 @@ class AIMUSEUM_API AAIM_MuseumController : public AInfo
     GENERATED_BODY()
 
 protected:
+    UPROPERTY(EditAnywhere)
+    TObjectPtr<AAIM_ExitPortal> ExitPortal;
+
+    UPROPERTY(EditAnywhere)
+    TObjectPtr<APlayerStart> PlayerStart;
+
     virtual void BeginPlay() override;
 
 private:
@@ -32,4 +40,8 @@ private:
 
     void OnCreateImageCompleted(const FImageResponse& Response);
     void OnRequestError(const FString& URL, const FString& Content);
+
+    void OnExitExperience();
+
+    FString GeneratePrompt() const;
 };

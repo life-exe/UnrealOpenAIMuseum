@@ -6,6 +6,8 @@
 #include "Provider/OpenAIProvider.h"
 #include "FuncLib/OpenAIFuncLib.h"
 #include "FuncLib/ImageFuncLib.h"
+#include "World/AIM_ExitPortal.h"
+#include "GameFramework/PlayerStart.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMuseumController, All, All);
 
@@ -36,8 +38,12 @@ void AAIM_MuseumController::BeginPlay()
     Provider->OnCreateImageCompleted().AddUObject(this, &ThisClass::OnCreateImageCompleted);
     Provider->OnRequestError().AddUObject(this, &ThisClass::OnRequestError);
 
-    const FString Prompt = "Kitten playing metal on guitars";
-    RequestImages(Prompt, Arts.Num());
+    RequestImages(GeneratePrompt(), Arts.Num());
+
+    check(ExitPortal);
+    ExitPortal->OnExitExperience().AddUObject(this, &ThisClass::OnExitExperience);
+
+    check(PlayerStart);
 }
 
 void AAIM_MuseumController::RequestImages(const FString& Prompt, int32 NumOfImages)
@@ -74,4 +80,30 @@ void AAIM_MuseumController::OnRequestError(const FString& URL, const FString& Co
     const FString Message = UOpenAIFuncLib::GetErrorMessage(Content);
     const FString OutputMessage = FString::Format(TEXT("URL:{0}, Message:{1}"), {URL, Message});
     UE_LOG(LogMuseumController, Error, TEXT("%s"), *OutputMessage);
+}
+
+void AAIM_MuseumController::OnExitExperience()
+{
+    if (!GetWorld() || !PlayerStart) return;
+
+    if (const auto* PC = GetWorld()->GetFirstPlayerController())
+    {
+        if (auto* Pawn = PC->GetPawn())
+        {
+            Pawn->TeleportTo(PlayerStart->GetActorLocation(), PlayerStart->GetActorRotation());
+            RequestImages(GeneratePrompt(), Arts.Num());
+        }
+    }
+}
+
+FString AAIM_MuseumController::GeneratePrompt() const
+{
+    const TArray<FString> Prompts = {"Kitten playing metal on guitars",        //
+        "Photorealistic Godzilla meets cartoon cat Tom (from Tom and Jerry)",  //
+        "Photorealistic flying whale in the clouds"};
+
+    static int32 Index = -1;
+    Index = (Index + 1) % Prompts.Num();
+
+    return Prompts[Index];
 }
