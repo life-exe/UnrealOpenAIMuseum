@@ -8,7 +8,8 @@ public class AIMuseum : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "OpenAI" });
+        PublicDependencyModuleNames.AddRange(
+            new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "OpenAI", "UMG" });
 
         PublicIncludePaths.AddRange(new string[] { "AIMuseum" });
     }

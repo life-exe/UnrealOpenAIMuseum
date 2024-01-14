@@ -9,7 +9,8 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
-				"Engine"
+				"Engine",
+				"ModelViewViewModel"
 			]
 		}
 	],
@@ -20,6 +21,15 @@
 			"TargetAllowList": [
 				"Editor"
 			]
+		},
+		{
+			"Name": "OpenAI",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/97eaf1e101ab4f29b5acbf7dacbd4d16"
+		},
+		{
+			"Name": "ModelViewViewModel",
+			"Enabled": true
 		}
 	]
 }
