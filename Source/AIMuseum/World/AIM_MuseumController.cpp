@@ -52,7 +52,7 @@ void AAIM_MuseumController::RequestImages(const FString& Prompt, int32 NumOfImag
 
     FOpenAIImage Image;
     Image.Prompt = Prompt;
-    Image.Size = UOpenAIFuncLib::OpenAIImageSizeToString(EImageSize::Size_512x512);
+    Image.Size = UOpenAIFuncLib::OpenAIImageSizeDalle2ToString(EImageSizeDalle2::Size_512x512);
     Image.Response_Format = UOpenAIFuncLib::OpenAIImageFormatToString(EOpenAIImageFormat::B64_JSON);
     Image.N = FMath::Min(NumOfImages, MaxNumOfImages);
 
@@ -70,7 +70,7 @@ void AAIM_MuseumController::OnCreateImageCompleted(const FImageResponse& Respons
     int32 Index = 0;
     for (auto* Art : Arts)
     {
-        auto* ArtTexture = UImageFuncLib::Texture2DFromBytes(Response.Data[Index]);
+        auto* ArtTexture = UImageFuncLib::Texture2DFromBytes(Response.Data[Index].B64_JSON);
         Art->SetArtTexture(ArtTexture);
         Index = (Index + 1) % Response.Data.Num();
     }
