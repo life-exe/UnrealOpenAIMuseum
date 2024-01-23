@@ -12,6 +12,7 @@ class UOpenAIProvider;
 struct FImageResponse;
 class AAIM_ExitPortal;
 class APlayerStart;
+class UAIM_MainWidget;
 
 UCLASS()
 class AIMUSEUM_API AAIM_MuseumController : public AInfo
@@ -26,6 +27,9 @@ protected:
     TObjectPtr<APlayerStart> PlayerStart;
 
     UPROPERTY(EditAnywhere)
+    TSubclassOf<UAIM_MainWidget> MainWidgetClass;
+
+    UPROPERTY(EditAnywhere)
     bool bImageGenerationEnabled{true};
 
     virtual void BeginPlay() override;
@@ -37,6 +41,9 @@ private:
     UPROPERTY()
     TObjectPtr<UOpenAIProvider> Provider;
 
+    UPROPERTY()
+    TObjectPtr<UAIM_MainWidget> MainWidget;
+
     FOpenAIAuth Auth;
 
     void RequestImages(const FString& Prompt, int32 NumOfImages);
@@ -44,7 +51,10 @@ private:
     void OnCreateImageCompleted(const FImageResponse& Response);
     void OnRequestError(const FString& URL, const FString& Content);
 
+    void OnStartExperience(const FString& Prompt);
     void OnExitExperience();
+
+    void ShowWelcomeWidget();
 
     FString GeneratePrompt() const;
 };
