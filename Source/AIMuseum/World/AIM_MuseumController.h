@@ -13,6 +13,7 @@ struct FImageResponse;
 class AAIM_ExitPortal;
 class APlayerStart;
 class UAIM_MainWidget;
+class UAIM_ViewModel;
 
 UCLASS()
 class AIMUSEUM_API AAIM_MuseumController : public AInfo
@@ -44,15 +45,20 @@ private:
     UPROPERTY()
     TObjectPtr<UAIM_MainWidget> MainWidget;
 
-    FOpenAIAuth Auth;
+    UPROPERTY()
+    TObjectPtr<UAIM_ViewModel> MuseumViewModel;
 
-    void RequestImages(const FString& Prompt, int32 NumOfImages);
+    FOpenAIAuth Auth;
+    TArray<FMessage> ChatHistory;
+
+    void RequestImages(int32 NumOfImages);
 
     void OnCreateImageCompleted(const FImageResponse& Response);
     void OnRequestError(const FString& URL, const FString& Content);
 
-    void OnStartExperience(const FString& Prompt);
+    void OnStartExperience();
     void OnExitExperience();
+    void OnPromptRandomize();
 
     void ShowWelcomeWidget();
 

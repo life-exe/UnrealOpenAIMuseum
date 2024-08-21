@@ -2,11 +2,7 @@
 
 #include "UI/AIM_LoadingWidget.h"
 #include "Components/TextBlock.h"
-
-void UAIM_LoadingWidget::SetPrompt(const FString& Prompt)
-{
-    PromptText->SetText(FText::FromString(Prompt));
-}
+#include "UI/AIM_ViewModel.h"
 
 void UAIM_LoadingWidget::FadeOut()
 {
@@ -19,4 +15,9 @@ void UAIM_LoadingWidget::OnAnimationFinished_Implementation(const UWidgetAnimati
     {
         SetVisibility(ESlateVisibility::Collapsed);
     }
+}
+
+void UAIM_LoadingWidget::SetViewModel(TObjectPtr<UAIM_ViewModel> ViewModel)
+{
+    OnViewModelUpdated.Broadcast(ViewModel);
 }

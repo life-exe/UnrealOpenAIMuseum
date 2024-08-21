@@ -3,6 +3,7 @@
 #include "UI/AIM_MainWidget.h"
 #include "UI/AIM_LoadingWidget.h"
 #include "UI/AIM_WelcomeWidget.h"
+#include "UI/AIM_ViewModel.h"
 
 void UAIM_MainWidget::NativeOnInitialized()
 {
@@ -15,13 +16,18 @@ void UAIM_MainWidget::NativeOnInitialized()
     Widgets.Add(EAIMuseumUIState::Welcome, WelcomeWidget);
 
     WelcomeWidget->OnPromptConfirmed().BindUObject(this, &ThisClass::OnPromptConfirmed);
+    WelcomeWidget->OnRandomRequested().BindUObject(this, &ThisClass::OnRandomize);
 }
 
-void UAIM_MainWidget::OnPromptConfirmed(const FString& Prompt)
+void UAIM_MainWidget::OnPromptConfirmed()
 {
     Show(EAIMuseumUIState::Loading);
-    LoadingWidget->SetPrompt(Prompt);
-    StartExperience.ExecuteIfBound(Prompt);
+    StartExperience.ExecuteIfBound();
+}
+
+void UAIM_MainWidget::OnRandomize()
+{
+    RandomRequested.ExecuteIfBound();
 }
 
 void UAIM_MainWidget::Show(EAIMuseumUIState InState)
@@ -49,7 +55,8 @@ void UAIM_MainWidget::HideAll()
     LoadingWidget->FadeOut();
 }
 
-void UAIM_MainWidget::SetError(const FString& ErrorMessage)
+void UAIM_MainWidget::SetViewModel(TObjectPtr<UAIM_ViewModel> ViewModel)
 {
-    WelcomeWidget->SetError(ErrorMessage);
+    WelcomeWidget->SetViewModel(ViewModel);
+    LoadingWidget->SetViewModel(ViewModel);
 }
