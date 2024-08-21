@@ -1,9 +1,9 @@
 // AI Museum, Copyright LifeEXE. All Rights Reserved.
 
 #include "UI/AIM_WelcomeWidget.h"
-#include "Components/TextBlock.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
+#include "UI/AIM_ViewModel.h"
 
 void UAIM_WelcomeWidget::NativeOnInitialized()
 {
@@ -12,21 +12,21 @@ void UAIM_WelcomeWidget::NativeOnInitialized()
     check(CreateButton);
     CreateButton->OnClicked.AddDynamic(this, &ThisClass::OnCreate);
 
-    check(PromptText);
-    PromptText->OnTextChanged.AddDynamic(this, &ThisClass::OnTextChanged);
-    PromptText->SetFocus();
+    check(RandomizeButton);
+    RandomizeButton->OnClicked.AddDynamic(this, &ThisClass::OnRandomize);
 
-    OnTextChanged(PromptText->GetText());
+    check(PromptText);
+    PromptText->SetFocus();
 }
 
 void UAIM_WelcomeWidget::OnCreate()
 {
-    PromptConfirmed.ExecuteIfBound(PromptText->GetText().ToString());
+    PromptConfirmed.ExecuteIfBound();
 }
 
-void UAIM_WelcomeWidget::OnTextChanged(const FText& Text)
+void UAIM_WelcomeWidget::OnRandomize()
 {
-    CreateButton->SetIsEnabled(!Text.ToString().IsEmpty());
+    RandomRequested.ExecuteIfBound();
 }
 
 void UAIM_WelcomeWidget::Show()
@@ -34,8 +34,7 @@ void UAIM_WelcomeWidget::Show()
     PromptText->SetFocus();
 }
 
-void UAIM_WelcomeWidget::SetError(const FString& Error)
+void UAIM_WelcomeWidget::SetViewModel(TObjectPtr<UAIM_ViewModel> ViewModel)
 {
-    ErrorMessage->SetText(FText::FromString(Error));
-    ErrorMessage->SetVisibility(Error.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+    OnViewModelUpdated.Broadcast(ViewModel);
 }

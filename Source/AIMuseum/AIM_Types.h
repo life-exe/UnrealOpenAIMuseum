@@ -4,7 +4,9 @@
 
 #include "AIM_Types.generated.h"
 
-DECLARE_DELEGATE_OneParam(FOnPromptConfirmedSig, const FString&);
+DECLARE_DELEGATE(FOnPromptConfirmedSig);
+DECLARE_DELEGATE(FOnRandomRequestedSig);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnViewModelUpdatedSig, UAIM_ViewModel*, ViewModel);
 
 UENUM() enum class EAIMuseumUIState : uint8
 {
