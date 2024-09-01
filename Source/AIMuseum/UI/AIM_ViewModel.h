@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MVVMViewModelBase.h"
+#include "FuncLib/ModelTypes.h"
 #include "AIM_ViewModel.generated.h"
 
 UCLASS()
@@ -21,6 +22,12 @@ protected:
     UPROPERTY(BlueprintReadWrite, FieldNotify, Setter, Getter)
     bool RandInProgress;
 
+    UPROPERTY(BlueprintReadWrite, FieldNotify, Setter, Getter)
+    EImageModelEnum ImageModel{EImageModelEnum::DALL_E_2};
+
+    UPROPERTY(BlueprintReadWrite, FieldNotify, Setter, Getter)
+    FText ImageProgressStatus;
+
 public:
     void SetPrompt(const FText& Prompt);
     FText GetPrompt() const;
@@ -31,9 +38,18 @@ public:
     void SetRandInProgress(bool RandInProgress);
     bool GetRandInProgress() const;
 
+    void SetImageModel(EImageModelEnum NewImageModel);
+    EImageModelEnum GetImageModel() const;
+
+    void SetImageProgressStatus(const FText& ImageProgressStatus);
+    FText GetImageProgressStatus() const;
+
     UFUNCTION(BlueprintPure, FieldNotify)
     bool IsPromptEmpty() const;
 
     UFUNCTION(BlueprintPure, FieldNotify)
     bool IsErrorVisible() const;
+
+    UFUNCTION(BlueprintPure, FieldNotify)
+    bool IsDalle3() const;
 };

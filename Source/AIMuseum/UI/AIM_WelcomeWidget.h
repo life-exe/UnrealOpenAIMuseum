@@ -5,11 +5,13 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "AIM_Types.h"
+#include "FuncLib/ModelTypes.h"
 #include "AIM_WelcomeWidget.generated.h"
 
 class UButton;
 class UEditableTextBox;
 class UAIM_ViewModel;
+class UComboBoxString;
 
 UCLASS()
 class AIMUSEUM_API UAIM_WelcomeWidget : public UUserWidget
@@ -33,12 +35,22 @@ protected:
     UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
     TObjectPtr<UEditableTextBox> PromptText;
 
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UComboBoxString> ImageComboBox;
+
     UPROPERTY(BlueprintAssignable)
     FOnViewModelUpdatedSig OnViewModelUpdated;
 
     virtual void NativeOnInitialized() override;
 
 private:
+    TMap<FString, EImageModelEnum> ImageModels{
+        {"DALLE-2", EImageModelEnum::DALL_E_2},
+        {"DALLE-3", EImageModelEnum::DALL_E_3},
+    };
+
+    TWeakObjectPtr<UAIM_ViewModel> ViewModel;
+
     FOnPromptConfirmedSig PromptConfirmed;
     FOnRandomRequestedSig RandomRequested;
 
@@ -47,4 +59,7 @@ private:
 
     UFUNCTION()
     void OnRandomize();
+
+    UFUNCTION()
+    void OnImageModelChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 };

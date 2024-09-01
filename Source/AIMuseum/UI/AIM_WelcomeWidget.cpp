@@ -4,6 +4,7 @@
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "UI/AIM_ViewModel.h"
+#include "Components/ComboBoxString.h"
 
 void UAIM_WelcomeWidget::NativeOnInitialized()
 {
@@ -17,6 +18,15 @@ void UAIM_WelcomeWidget::NativeOnInitialized()
 
     check(PromptText);
     PromptText->SetFocus();
+
+    check(ImageComboBox);
+    ImageComboBox->ClearOptions();
+    for (const auto& [Key, Value] : ImageModels)
+    {
+        ImageComboBox->AddOption(Key);
+    }
+    ImageComboBox->SetSelectedOption("DALLE-2");
+    ImageComboBox->OnSelectionChanged.AddDynamic(this, &ThisClass::OnImageModelChanged);
 }
 
 void UAIM_WelcomeWidget::OnCreate()
@@ -34,7 +44,16 @@ void UAIM_WelcomeWidget::Show()
     PromptText->SetFocus();
 }
 
-void UAIM_WelcomeWidget::SetViewModel(TObjectPtr<UAIM_ViewModel> ViewModel)
+void UAIM_WelcomeWidget::SetViewModel(TObjectPtr<UAIM_ViewModel> InViewModel)
 {
-    OnViewModelUpdated.Broadcast(ViewModel);
+    ViewModel = InViewModel;
+    OnViewModelUpdated.Broadcast(InViewModel);
+}
+
+void UAIM_WelcomeWidget::OnImageModelChanged(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+    if (ViewModel.IsValid() && ImageModels.Contains(SelectedItem))
+    {
+        ViewModel->SetImageModel(ImageModels[SelectedItem]);
+    }
 }

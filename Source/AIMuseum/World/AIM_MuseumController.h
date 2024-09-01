@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Info.h"
 #include "Provider/CommonTypes.h"
+#include "HTTP.h"
+#include "FuncLib/ModelTypes.h"
 #include "AIM_MuseumController.generated.h"
 
 class AAIM_Art;
@@ -33,6 +35,9 @@ protected:
     UPROPERTY(EditAnywhere)
     bool bImageGenerationEnabled{true};
 
+    UPROPERTY(EditAnywhere)
+    TMap<EImageModelEnum, int32> NumOfImages{{EImageModelEnum::DALL_E_2, 10}, {EImageModelEnum::DALL_E_3, 3}};
+
     virtual void BeginPlay() override;
 
 private:
@@ -48,13 +53,22 @@ private:
     UPROPERTY()
     TObjectPtr<UAIM_ViewModel> MuseumViewModel;
 
+    UPROPERTY()
+    TArray<TObjectPtr<UTexture2D>> Textures;
+
     FOpenAIAuth Auth;
     TArray<FMessage> ChatHistory;
 
-    void RequestImages(int32 NumOfImages);
+    void RequestImages();
+    void MakeDalle2Request();
+    void MakeDalle3Request();
+    void DownloadImage(const FString& URL);
+    void OnDownloadCompleted(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
+    void UpdateTextures();
 
     void OnCreateImageCompleted(const FImageResponse& Response);
     void OnRequestError(const FString& URL, const FString& Content);
+    void SetError(const FString& ErrorMessage);
 
     void OnStartExperience();
     void OnExitExperience();

@@ -11,12 +11,12 @@
 #include "UI/AIM_MainWidget.h"
 #include "UI/AIM_ViewModel.h"
 #include "Algo/ForEach.h"
+#include "Logging/StructuredLog.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMuseumController, All, All);
 
 namespace
 {
-constexpr int32 MaxNumOfImages = 10;
 
 void SetUIInput(UWorld* World, bool Enabled)
 {
@@ -26,6 +26,13 @@ void SetUIInput(UWorld* World, bool Enabled)
         PC->SetShowMouseCursor(Enabled);
         Enabled ? PC->SetInputMode(FInputModeUIOnly()) : PC->SetInputMode(FInputModeGameOnly());
     }
+}
+
+constexpr int32 MaxNumOfImages = 10;
+
+int32 ClampImagesNum(int32 RequestedNum)
+{
+    return FMath::Clamp(RequestedNum, 1, MaxNumOfImages);
 }
 
 }  // namespace
@@ -105,7 +112,7 @@ void AAIM_MuseumController::BeginPlay()
 void AAIM_MuseumController::OnStartExperience()
 {
     // RequestImages(GeneratePrompt(), Arts.Num());
-    RequestImages(Arts.Num());
+    RequestImages();
 }
 
 void AAIM_MuseumController::OnPromptRandomize()
@@ -121,34 +128,106 @@ void AAIM_MuseumController::OnPromptRandomize()
     Provider->CreateChatCompletion(ChatCompletion, Auth);
 }
 
-void AAIM_MuseumController::RequestImages(int32 NumOfImages)
+void AAIM_MuseumController::RequestImages()
 {
     if (!bImageGenerationEnabled) return;
 
+    Textures.Empty();
+
+    switch (MuseumViewModel->GetImageModel())
+    {
+        case EImageModelEnum::DALL_E_2: MakeDalle2Request(); break;
+        case EImageModelEnum::DALL_E_3: MakeDalle3Request(); break;
+    }
+}
+
+void AAIM_MuseumController::MakeDalle2Request()
+{
     FOpenAIImage Image;
     Image.Prompt = MuseumViewModel->GetPrompt().ToString();
+    Image.Model = UOpenAIFuncLib::OpenAIImageModelToString(MuseumViewModel->GetImageModel());
     Image.Size = UOpenAIFuncLib::OpenAIImageSizeDalle2ToString(EImageSizeDalle2::Size_512x512);
     Image.Response_Format = UOpenAIFuncLib::OpenAIImageFormatToString(EOpenAIImageFormat::B64_JSON);
-    Image.N = FMath::Min(NumOfImages, MaxNumOfImages);
-
+    Image.N = FMath::Min(Arts.Num(), ClampImagesNum(NumOfImages[EImageModelEnum::DALL_E_2]));
     Provider->CreateImage(Image, Auth);
+}
+
+void AAIM_MuseumController::MakeDalle3Request()
+{
+    FOpenAIImage Image;
+    Image.Prompt = MuseumViewModel->GetPrompt().ToString();
+    Image.Model = UOpenAIFuncLib::OpenAIImageModelToString(MuseumViewModel->GetImageModel());
+    Image.Size = UOpenAIFuncLib::OpenAIImageSizeDalle3ToString(EImageSizeDalle3::Size_1024x1024);
+    Image.Response_Format = UOpenAIFuncLib::OpenAIImageFormatToString(EOpenAIImageFormat::URL);
+    Image.N = 1;
+    Provider->CreateImage(Image, Auth);
+    const auto ProgressString = FString::Format(TEXT("{0}/{1}"), {Textures.Num(), ClampImagesNum(NumOfImages[EImageModelEnum::DALL_E_3])});
+    MuseumViewModel->SetImageProgressStatus(FText::FromString(ProgressString));
 }
 
 void AAIM_MuseumController::OnCreateImageCompleted(const FImageResponse& Response)
 {
     if (Response.Data.Num() < 1)
     {
-        UE_LOG(LogMuseumController, Warning, TEXT("No images were generated"));
-        ShowWelcomeWidget();
+        SetError("No images were generated");
         return;
     }
 
+    switch (MuseumViewModel->GetImageModel())
+    {
+        case EImageModelEnum::DALL_E_2:
+        {
+            for (const auto& ImageObject : Response.Data)
+            {
+                auto* ArtTexture = UImageFuncLib::Texture2DFromBytes(ImageObject.B64_JSON);
+                Textures.Add(ArtTexture);
+            }
+            UpdateTextures();
+            break;
+        }
+
+        case EImageModelEnum::DALL_E_3:  //
+            DownloadImage(Response.Data[0].URL);
+            break;
+    }
+}
+
+void AAIM_MuseumController::DownloadImage(const FString& URL)
+{
+    auto HttpRequest = FHttpModule::Get().CreateRequest();
+    HttpRequest->OnProcessRequestComplete().BindUObject(this, &ThisClass::OnDownloadCompleted);
+    HttpRequest->SetURL(URL);
+    HttpRequest->SetVerb(TEXT("GET"));
+    HttpRequest->ProcessRequest();
+}
+
+void AAIM_MuseumController::OnDownloadCompleted(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded)
+{
+    if (!(bSucceeded && HttpResponse))
+    {
+        SetError("Download image error!");
+        return;
+    }
+
+    auto* ArtTexture = UImageFuncLib::CreateTexture(HttpResponse->GetContent());
+    Textures.Add(ArtTexture);
+    if (Textures.Num() == ClampImagesNum(NumOfImages[EImageModelEnum::DALL_E_3]))
+    {
+        UpdateTextures();
+    }
+    else
+    {
+        MakeDalle3Request();
+    }
+}
+
+void AAIM_MuseumController::UpdateTextures()
+{
     int32 Index = 0;
     for (auto* Art : Arts)
     {
-        auto* ArtTexture = UImageFuncLib::Texture2DFromBytes(Response.Data[Index].B64_JSON);
-        Art->SetArtTexture(ArtTexture);
-        Index = (Index + 1) % Response.Data.Num();
+        Art->SetArtTexture(Textures[Index]);
+        Index = (Index + 1) % Textures.Num();
     }
 
     MainWidget->HideAll();
@@ -159,20 +238,19 @@ void AAIM_MuseumController::OnRequestError(const FString& URL, const FString& Co
 {
     const FString Message = UOpenAIFuncLib::GetErrorMessage(Content);
     const FString OutputMessage = FString::Format(TEXT("URL:{0}, Message:{1}"), {URL, Message});
-    UE_LOG(LogMuseumController, Error, TEXT("%s"), *OutputMessage);
+    SetError(OutputMessage);
+}
 
-    MuseumViewModel->SetErrorMessage(FText::FromString(OutputMessage));
+void AAIM_MuseumController::SetError(const FString& ErrorMessage)
+{
+    UE_LOGFMT(LogMuseumController, Error, "{0}", ErrorMessage);
+    MuseumViewModel->SetErrorMessage(FText::FromString(ErrorMessage));
+    MuseumViewModel->SetRandInProgress(false);
 
     static constexpr float HideSeconds = 5.0f;
     static FTimerHandle ErrorTimerHandle;
     GetWorldTimerManager().SetTimer(
-        ErrorTimerHandle,
-        [this]()
-        {
-            MuseumViewModel->SetErrorMessage(FText{});
-            MuseumViewModel->SetRandInProgress(false);
-        },
-        HideSeconds, false);
+        ErrorTimerHandle, [this]() { MuseumViewModel->SetErrorMessage(FText{}); }, HideSeconds, false);
 
     ShowWelcomeWidget();
 }
