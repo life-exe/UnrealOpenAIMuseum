@@ -38,6 +38,25 @@ bool UAIM_ViewModel::GetRandInProgress() const
     return RandInProgress;
 }
 
+void UAIM_ViewModel::SetImageModel(EImageModelEnum NewImageModel)
+{
+    if (UE_MVVM_SET_PROPERTY_VALUE(ImageModel, NewImageModel))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(ShouldShowImageLoadingProgress);
+    }
+}
+
+EImageModelEnum UAIM_ViewModel::GetImageModel() const
+{
+    return ImageModel;
+}
+
+void UAIM_ViewModel::SetImageLoadingProgress(const FImageLoadingProgress& Progress)
+{
+    ImageLoadingProgress = Progress;
+    UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(ImageLoadingInfo);
+}
+
 bool UAIM_ViewModel::IsPromptEmpty() const
 {
     return Prompt.IsEmpty();
@@ -46,4 +65,15 @@ bool UAIM_ViewModel::IsPromptEmpty() const
 bool UAIM_ViewModel::IsErrorVisible() const
 {
     return !ErrorMessage.IsEmpty();
+}
+
+FText UAIM_ViewModel::ImageLoadingInfo() const
+{
+    const FString Status = FString::Format(TEXT("{0}/{1}"), {ImageLoadingProgress.CurrentNum, ImageLoadingProgress.Count});
+    return FText::FromString(Status);
+}
+
+bool UAIM_ViewModel::ShouldShowImageLoadingProgress() const
+{
+    return ImageModel == EImageModelEnum::DALL_E_3;
 }

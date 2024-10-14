@@ -3,6 +3,7 @@
 #include "UI/AIM_WelcomeWidget.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
+#include "Components/ComboBoxString.h"
 #include "UI/AIM_ViewModel.h"
 
 void UAIM_WelcomeWidget::NativeOnInitialized()
@@ -17,6 +18,9 @@ void UAIM_WelcomeWidget::NativeOnInitialized()
 
     check(PromptText);
     PromptText->SetFocus();
+
+    check(ImageModelComboBox);
+    ImageModelComboBox->OnSelectionChanged.AddDynamic(this, &ThisClass::OnImageModelChanged);
 }
 
 void UAIM_WelcomeWidget::OnCreate()
@@ -34,7 +38,31 @@ void UAIM_WelcomeWidget::Show()
     PromptText->SetFocus();
 }
 
-void UAIM_WelcomeWidget::SetViewModel(TObjectPtr<UAIM_ViewModel> ViewModel)
+void UAIM_WelcomeWidget::SetViewModel(TObjectPtr<UAIM_ViewModel> NewViewModel)
 {
-    OnViewModelUpdated.Broadcast(ViewModel);
+    check(NewViewModel);
+    ViewModel = NewViewModel;
+
+    ImageModelComboBox->ClearOptions();
+
+    const auto ImageModels = NewViewModel->GetImageModelDisplayData();
+    for (const auto& [ModelName, _] : ImageModels)
+    {
+        ImageModelComboBox->AddOption(ModelName);
+    }
+    ImageModelComboBox->SetSelectedOption(NewViewModel->GetImageModelDisplayText());
+
+    OnViewModelUpdated.Broadcast(NewViewModel);
+}
+
+void UAIM_WelcomeWidget::OnImageModelChanged(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+    if (ViewModel.IsValid())
+    {
+        const auto ImageModels = ViewModel->GetImageModelDisplayData();
+        if (ImageModels.Contains(SelectedItem))
+        {
+            ViewModel->SetImageModel(ImageModels[SelectedItem]);
+        }
+    }
 }

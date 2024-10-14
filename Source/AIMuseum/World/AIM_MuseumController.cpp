@@ -11,12 +11,18 @@
 #include "UI/AIM_MainWidget.h"
 #include "UI/AIM_ViewModel.h"
 #include "Algo/ForEach.h"
+#include "Logging/StructuredLog.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMuseumController, All, All);
 
 namespace
 {
 constexpr int32 MaxNumOfImages = 10;
+
+int32 ClampImageAmount(int32 RequestedNum)
+{
+    return FMath::Clamp(RequestedNum, 1, MaxNumOfImages);
+}
 
 void SetUIInput(UWorld* World, bool Enabled)
 {
@@ -104,8 +110,15 @@ void AAIM_MuseumController::BeginPlay()
 
 void AAIM_MuseumController::OnStartExperience()
 {
-    // RequestImages(GeneratePrompt(), Arts.Num());
-    RequestImages(Arts.Num());
+    if (!bImageGenerationEnabled) return;
+
+    ArtTextures.Empty();
+
+    const auto ImageModel = MuseumViewModel->GetImageModel();
+    ImageRequestData.TotalCount = ClampImageAmount(ImageAmount[ImageModel]);
+    ImageRequestData.DownloadedCount = 0;
+
+    RequestImages();
 }
 
 void AAIM_MuseumController::OnPromptRandomize()
@@ -121,36 +134,122 @@ void AAIM_MuseumController::OnPromptRandomize()
     Provider->CreateChatCompletion(ChatCompletion, Auth);
 }
 
-void AAIM_MuseumController::RequestImages(int32 NumOfImages)
+void AAIM_MuseumController::RequestImages()
 {
-    if (!bImageGenerationEnabled) return;
+    switch (MuseumViewModel->GetImageModel())
+    {
+        case EImageModelEnum::DALL_E_2: MakeDalle2Request(); break;
+        case EImageModelEnum::DALL_E_3: MakeDalle3Request(); break;
 
+        default: checkNoEntry(); break;
+    }
+}
+
+void AAIM_MuseumController::MakeDalle2Request()
+{
     FOpenAIImage Image;
     Image.Prompt = MuseumViewModel->GetPrompt().ToString();
     Image.Size = UOpenAIFuncLib::OpenAIImageSizeDalle2ToString(EImageSizeDalle2::Size_512x512);
-    Image.Response_Format = UOpenAIFuncLib::OpenAIImageFormatToString(EOpenAIImageFormat::B64_JSON);
-    Image.N = FMath::Min(NumOfImages, MaxNumOfImages);
+    Image.Response_Format = UOpenAIFuncLib::OpenAIImageFormatToString(ImageFormat);
+    Image.Model = UOpenAIFuncLib::OpenAIImageModelToString(EImageModelEnum::DALL_E_2);
+    Image.N = FMath::Min(Arts.Num(), ClampImageAmount(ImageAmount[EImageModelEnum::DALL_E_2]));
+    ImageRequestData.NumPerRequest = Image.N;
 
     Provider->CreateImage(Image, Auth);
+}
+
+void AAIM_MuseumController::MakeDalle3Request()
+{
+    FOpenAIImage Image;
+    Image.Prompt = MuseumViewModel->GetPrompt().ToString();
+    Image.Size = UOpenAIFuncLib::OpenAIImageSizeDalle3ToString(EImageSizeDalle3::Size_1024x1024);
+    Image.Response_Format = UOpenAIFuncLib::OpenAIImageFormatToString(ImageFormat);
+    Image.Model = UOpenAIFuncLib::OpenAIImageModelToString(EImageModelEnum::DALL_E_3);
+    Image.N = 1;
+    ImageRequestData.NumPerRequest = Image.N;
+    Provider->CreateImage(Image, Auth);
+
+    UAIM_ViewModel::FImageLoadingProgress ImageLoadingProgress;
+    ImageLoadingProgress.CurrentNum = ArtTextures.Num() + 1;
+    ImageLoadingProgress.Count = ClampImageAmount(ImageAmount[EImageModelEnum::DALL_E_3]);
+    MuseumViewModel->SetImageLoadingProgress(ImageLoadingProgress);
 }
 
 void AAIM_MuseumController::OnCreateImageCompleted(const FImageResponse& Response)
 {
     if (Response.Data.Num() < 1)
     {
-        UE_LOG(LogMuseumController, Warning, TEXT("No images were generated"));
-        ShowWelcomeWidget();
+        ShowError("No images were generated");
         return;
     }
 
+    check(ImageRequestData.NumPerRequest == Response.Data.Num());
+
+    for (const auto& ImageObject : Response.Data)
+    {
+        switch (ImageFormat)
+        {
+            case EOpenAIImageFormat::URL: DownloadImage(ImageObject.URL); break;
+            case EOpenAIImageFormat::B64_JSON:
+            {
+                auto* ArtTexture = UImageFuncLib::Texture2DFromBytes(ImageObject.B64_JSON);
+                ArtTextures.Add(ArtTexture);
+                break;
+            }
+            default: checkNoEntry(); break;
+        }
+    }
+
+    if (ImageFormat == EOpenAIImageFormat::B64_JSON)
+    {
+        ImageRequestData.TotalCount == ArtTextures.Num() ? StartMuseumWalking() : RequestImages();
+    }
+}
+
+void AAIM_MuseumController::DownloadImage(const FString& URL)
+{
+    auto HttpRequest = FHttpModule::Get().CreateRequest();
+    HttpRequest->OnProcessRequestComplete().BindUObject(this, &ThisClass::OnImageDownloaded);
+    HttpRequest->SetURL(URL);
+    HttpRequest->SetVerb(TEXT("GET"));
+    HttpRequest->ProcessRequest();
+}
+
+void AAIM_MuseumController::OnImageDownloaded(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSucceeded)
+{
+    if (!bSucceeded || !Response)
+    {
+        ShowError("Image downloading error.");
+        return;
+    }
+
+    auto* ArtTexture = UImageFuncLib::CreateTexture(Response->GetContent());
+    ArtTextures.Add(ArtTexture);
+    ImageRequestData.DownloadedCount += 1;
+
+    if (ImageRequestData.TotalCount == ArtTextures.Num())
+    {
+        StartMuseumWalking();
+    }
+    else if (ImageRequestData.DownloadedCount == ImageRequestData.NumPerRequest)
+    {
+        RequestImages();
+    }
+}
+
+void AAIM_MuseumController::UpdateTextures()
+{
     int32 Index = 0;
     for (auto* Art : Arts)
     {
-        auto* ArtTexture = UImageFuncLib::Texture2DFromBytes(Response.Data[Index].B64_JSON);
-        Art->SetArtTexture(ArtTexture);
-        Index = (Index + 1) % Response.Data.Num();
+        Art->SetArtTexture(ArtTextures[Index]);
+        Index = (Index + 1) % ArtTextures.Num();
     }
+}
 
+void AAIM_MuseumController::StartMuseumWalking()
+{
+    UpdateTextures();
     MainWidget->HideAll();
     SetUIInput(GetWorld(), false);
 }
@@ -158,10 +257,15 @@ void AAIM_MuseumController::OnCreateImageCompleted(const FImageResponse& Respons
 void AAIM_MuseumController::OnRequestError(const FString& URL, const FString& Content)
 {
     const FString Message = UOpenAIFuncLib::GetErrorMessage(Content);
-    const FString OutputMessage = FString::Format(TEXT("URL:{0}, Message:{1}"), {URL, Message});
-    UE_LOG(LogMuseumController, Error, TEXT("%s"), *OutputMessage);
+    const FString ErrorMessage = FString::Format(TEXT("URL:{0}, Message:{1}"), {URL, Message});
+    ShowError(ErrorMessage);
+}
 
-    MuseumViewModel->SetErrorMessage(FText::FromString(OutputMessage));
+void AAIM_MuseumController::ShowError(const FString& ErrorMessage)
+{
+    UE_LOGFMT(LogMuseumController, Error, "{0}", ErrorMessage);
+
+    MuseumViewModel->SetErrorMessage(FText::FromString(ErrorMessage));
     MuseumViewModel->SetRandInProgress(false);
 
     static constexpr float HideSeconds = 5.0f;
